@@ -24,7 +24,7 @@ com["filesystem"] = component.proxy(computer.getBootAddress())
 local gpuAddress = component.list("gpu")()
 local screenAddress = component.list("screen")()
 
-if not screen or not gpu then error("Not enough gpu or screen",0) end
+if not screenAddress or not gpuAddress then error("Not enough gpu or screen",0) end
 
 gpuAddress = nil
 screenAddress = nil
