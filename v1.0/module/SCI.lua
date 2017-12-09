@@ -1,6 +1,6 @@
 local SCI = {
 	io = {
-		files = {
+		filesystem = {
 
 		},
 		screen = {
@@ -68,116 +68,114 @@ do
 	  return SCI.io.filesystem.canonical(concat(2, pathA, pathB, ...))
 	end
 
-	do
-		local function segments(path)
-		  path = path:gsub("\\", "/")
-		  repeat local n; path, n = path:gsub("//", "/") until n == 0
-		  local parts = {}
-		  for part in path:gmatch("[^/]+") do
-		    table.insert(parts, part)
-		  end
-		  local i = 1
-		  while i <= #parts do
-		    if parts[i] == "." then
-		      table.remove(parts, i)
-		    elseif parts[i] == ".." then
-		      table.remove(parts, i)
-		      i = i - 1
-		      if i > 0 then
-		        table.remove(parts, i)
-		      else
-		        i = 1
-		      end
-		    else
-		      i = i + 1
-		    end
-		  end
-		  return parts
-		end
-
-		function SCI.io.filesystem.path(path)
-		  local parts = segments(path)
-		  local result = table.concat(parts, "/", 1, #parts - 1) .. "/"
-		  if unicode.sub(path, 1, 1) == "/" and unicode.sub(result, 1, 1) ~= "/" then
-		    return "/" .. result
-		  else
-		    return result
-		  end
-		end
-
-		function SCI.io.filesystem.name(path)
-		  local parts = segments(path)
-		  return parts[#parts]
-		end
+	local function segments(path)
+	  path = path:gsub("\\", "/")
+	  repeat local n; path, n = path:gsub("//", "/") until n == 0
+	  local parts = {}
+	  for part in path:gmatch("[^/]+") do
+	    table.insert(parts, part)
+	  end
+	  local i = 1
+	  while i <= #parts do
+	    if parts[i] == "." then
+	      table.remove(parts, i)
+	    elseif parts[i] == ".." then
+	      table.remove(parts, i)
+	      i = i - 1
+	      if i > 0 then
+	        table.remove(parts, i)
+	      else
+	        i = 1
+	      end
+	    else
+	      i = i + 1
+	    end
+	  end
+	  return parts
 	end
 
-	function SCI.io.filesystem.getFileObject(path,superuserkey)
-		if not fs.exists(path) or fs.isDirectory(path) then return nil, "Invalid path" end
-		local object = {}
-		local perm = checkPermissions(path,superuserkey)
-		function object.read()
-			status("[SCI] Reading file " .. path)
-			if perm.read then
-				return readFile(path)
-			else
-				status("[SCI] Permission denied")
-				return nil, "Permission denied"
-			end
-		end
-		function object.write(data)
-			status("[SCI] Writing data to file " .. path)
-			if perm.write then
-				local handle, reason = fs.open(path,"w")
-				if not handle then error(reason) end
-				fs.write(handle,data)
-				fs.close()
-			else
-				status("[SCI] Permission denied")
-				return nil, "Permission denied"
-			end
-		end
-		function object.create()
-			status("[SCI] Creating file " .. path)
-			if perm.write then
-				local handle, reason = fs.open(path,"w")
-				if not handle then error(reason) end
-				fs.write(handle,"")
-				fs.close()
-			else
-				status("[SCI] Permission denied")
-				return nil, "Permission denied"
-			end
-		end
-		function object.remove()
-			status("[SCI] Removing file " .. path)
-			if perm.write then
-				fs.remove(path)
-			else
-				status("[SCI] Permission denied")
-				return nil, "Permission denied"
-			end
-		end
-		function object.mkdirs()
-			status("[SCI] Creating folders " .. path)
-			if perm.write then
-				fs.makeDirectory(SCI.io.filesystem.path(path))
-			else
-				status("[SCI] Permission denied")
-				return nil, "Permission denied"
-			end
-		end
-		function object.exists()
-			return fs.exists(path) 
-		end
-		function object.lastModified()
-			return fs.lastModified(path)
-		end
-		function object.rewrite(data)
-			object.remove()
-			object.write(data)
-		end
-		return object
+	function SCI.io.filesystem.path(path)
+	  local parts = segments(path)
+	  local result = table.concat(parts, "/", 1, #parts - 1) .. "/"
+	  if unicode.sub(path, 1, 1) == "/" and unicode.sub(result, 1, 1) ~= "/" then
+	    return "/" .. result
+	  else
+	    return result
+	  end
 	end
+
+	function SCI.io.filesystem.name(path)
+	  local parts = segments(path)
+	  return parts[#parts]
+	end
+end
+
+function SCI.io.filesystem.getFileObject(path,superuserkey)
+	if not fs.exists(path) or fs.isDirectory(path) then return nil, "Invalid path" end
+	local object = {}
+	local perm = checkPermissions(path,superuserkey)
+	function object.read()
+		status("[SCI] Reading file " .. path)
+		if perm.read then
+			return readFile(path)
+		else
+			status("[SCI] Permission denied")
+			return nil, "Permission denied"
+		end
+	end
+	function object.write(data)
+		status("[SCI] Writing data to file " .. path)
+		if perm.write then
+			local handle, reason = fs.open(path,"w")
+			if not handle then error(reason) end
+			fs.write(handle,data)
+			fs.close()
+		else
+			status("[SCI] Permission denied")
+			return nil, "Permission denied"
+		end
+	end
+	function object.create()
+		status("[SCI] Creating file " .. path)
+		if perm.write then
+			local handle, reason = fs.open(path,"w")
+			if not handle then error(reason) end
+			fs.write(handle,"")
+			fs.close()
+		else
+			status("[SCI] Permission denied")
+			return nil, "Permission denied"
+		end
+	end
+	function object.remove()
+		status("[SCI] Removing file " .. path)
+		if perm.write then
+			fs.remove(path)
+		else
+			status("[SCI] Permission denied")
+			return nil, "Permission denied"
+		end
+	end
+	function object.mkdirs()
+		status("[SCI] Creating folders " .. path)
+		if perm.write then
+			fs.makeDirectory(SCI.io.filesystem.path(path))
+		else
+			status("[SCI] Permission denied")
+			return nil, "Permission denied"
+		end
+	end
+	function object.exists()
+		return fs.exists(path) 
+	end
+	function object.lastModified()
+		return fs.lastModified(path)
+	end
+	function object.rewrite(data)
+		object.remove()
+		object.write(data)
+	end
+	return object
 
 	function SCI.io.filesystem.list(path,superuserkey)
 		status("[SCI] Receiving list of files in " .. path)
