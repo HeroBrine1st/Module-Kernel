@@ -31,12 +31,12 @@ screenAddress = nil
 
 local gpu = com.gpu
 local fs = com.filesystem
-local w, h = gpu.getResolution
+local w, h = gpu.getResolution()
 local statusY = 1
 local statusEnabled = true
 function status(msg)
     local time = os.date('%X', computer.uptime())
-    msg = "[" .. time .. "] " .. msg
+    msg = "[" .. tostring(time) .. "] " .. msg
 	local x = 1
 	local y = statusY
 	gpu.set(x,y,msg)
