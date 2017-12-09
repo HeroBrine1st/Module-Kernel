@@ -90,7 +90,7 @@ end
 
 status("Initializing kernel basic libraries")
 local kernel = {}
-local kernel.modules = {}
+kernel.modules = {}
 function kernel.loadModule(name)
 	local path = "/module/" .. name .. ".lua"
 	status("Loading module " .. path)
