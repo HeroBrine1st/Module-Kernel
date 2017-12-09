@@ -58,10 +58,10 @@ function readFile(path)
 		local data, reason = fs.read(handle,math.huge)
 		if not data and reason then
 			error(reason)
-		else
-			error(reason)
 		end
-		buffer = buffer .. data
+		if data then
+			buffer = buffer .. data
+		end
 	until not data
 	fs.close(handle)
 	return buffer
