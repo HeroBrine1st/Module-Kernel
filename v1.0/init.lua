@@ -48,24 +48,11 @@ function status(msg)
 	log = log .. msg .. "\n"
 end
 status("Booting kernel")
-function loadfile(path)
-	local handle = fs.open(path,"r")
-	local buffer = ""
-	repeat
-		local data, reason = fs.read(handle,math.huge)
-		if not data and reason then
-			error(reason)
-		else
-			error(reason)
-		end
-		buffer = buffer .. data
-	until not data
-	fs.close(handle)
-	return load(buffer,"=" .. path)
-end
+
 
 function readFile(path)
-	local handle = fs.open(path,"r")
+	local handle,res = fs.open(path,"r")
+	if not handle then error(res) end
 	local buffer = ""
 	repeat
 		local data, reason = fs.read(handle,math.huge)
@@ -78,6 +65,10 @@ function readFile(path)
 	until not data
 	fs.close(handle)
 	return buffer
+end
+
+function loadfile(path)
+	return load(readFile(path),"=" .. path)
 end
 
 local function panic(reason)
