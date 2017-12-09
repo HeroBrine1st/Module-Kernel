@@ -13,7 +13,7 @@ function string.random(length)
   end
 end
 
-_G.log = ""
+log = ""
 _G.kernelversion = "Module Kernel v1.0"
 for address, componentType in component.list() do
 	if not com[componentType] then
@@ -35,15 +35,19 @@ local w, h = gpu.getResolution()
 local statusY = 1
 local statusEnabled = true
 function status(msg)
-    local time = os.date('%X', computer.uptime())
-    msg = "[" .. tostring(time) .. "] " .. msg
-	local x = 1
-	local y = statusY
-	gpu.set(x,y,msg)
-	statusY = statusY + 1
-	if statusY > h then
-		statusY = h
-		gpu.copy(1,1,w,h,0,-1)
+	if statusEnabled then
+		gpu.setBackground(0x000000)
+		gpu.setForeground(0xFFFFFF)
+	    local time = os.date('%X', computer.uptime())
+	    msg = "[" .. tostring(time) .. "] " .. msg
+		local x = 1
+		local y = statusY
+		gpu.set(x,y,msg)
+		statusY = statusY + 1
+		if statusY > h then
+			statusY = h
+			gpu.copy(1,1,w,h,0,-1)
+		end
 	end
 	log = log .. msg .. "\n"
 end
@@ -84,7 +88,7 @@ local function panic(reason)
 end
 
 status("Initializing kernel basic libraries")
-local kernel = {}
+kernel = {}
 kernel.modules = {}
 function kernel.loadModule(name)
 	local path = "/module/" .. name .. ".lua"
@@ -92,13 +96,38 @@ function kernel.loadModule(name)
 	if kernel.modules[name] then return kernel.modules[name] end
 	local preLoad, reason = loadfile(path)
 	if not preLoad then panic("Error in loading file " .. path .. ". Reason: " .. reason) end
+	xpcall(preLoad,panic)
 	local returning = {preLoad()}
 	kernel.modules[name] = returning[1]
 	return table.unpack(returning)
 end
-
+_G.isShiftPressed = false
+_G.isCtrlPressed = false
+_G.isAltPressed = false
 local daemons = kernel.loadModule("daemons")
-status("")
-local SCI = kernel.loadModule("SCI")
+status("Writing new computer.pullSignal for daemons")
+computer.pullSignal = daemons.pullSignal
+local SCI,superuserkey = kernel.loadModule("SCI")
 
-panic("Test")
+local daem = SCI.io.filesystem.list("/daemons/",superuserkey)
+for i = 1, #daem do
+	local name,start,onSignal = loadfile(SCI.io.filesystem.concat("/daemons/",daem[i]))()
+	daemons.addDaemon(name,start,onSignal)
+end
+daemons.start()
+status("Starting small lua interprepter")
+while true do
+	local input = SCI.io.screen.inputWord(1,48,160,3,"",0x000000,0xFFFFFF,1,1)
+	gpu.setBackground(0x000000)
+	gpu.setForeground(0xFFFFFF)
+	status(tostring(input))
+	if input and not input == "" then
+		local func, reason = load(input,"=string",_,{SCI=SCI,status=status})
+		if not func then 
+			status(reason)
+		else
+			local success, reason2 = pcall(func)
+			if not success then status(reason) end
+		end
+	end
+end
