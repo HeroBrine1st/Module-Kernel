@@ -191,7 +191,7 @@ do
 	local buffer = {}
 	
 	function SCI.network.internet.request(url,post)
-		if not com.isAvailable("internet") then return nil, "Not available component \"internet\""
+		if not com.isAvailable("internet") then return nil, "Not available component \"internet\"" end
 		local success, res = pcall(com.internet.request,url,post)
 		if success then
 			return function()
@@ -285,7 +285,7 @@ do
 	                     __metatable = "socketstream"}
 	  return setmetatable(stream, metatable) end
 	function SCI.network.internet.open(address, port)
-		if not com.isAvailable("internet") then return nil, "Not available component \"internet\""
+		if not com.isAvailable("internet") then return nil, "Not available component \"internet\"" end
 		local stream, reason = socket(address, port)
 		if not stream then
 			return nil, reason
