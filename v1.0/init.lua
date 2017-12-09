@@ -55,6 +55,8 @@ function loadfile(path)
 		local data, reason = fs.read(handle,math.huge)
 		if not data and reason then
 			error(reason)
+		else
+			error(reason)
 		end
 		buffer = buffer .. data
 	until not data
@@ -68,6 +70,8 @@ function readFile(path)
 	repeat
 		local data, reason = fs.read(handle,math.huge)
 		if not data and reason then
+			error(reason)
+		else
 			error(reason)
 		end
 		buffer = buffer .. data
