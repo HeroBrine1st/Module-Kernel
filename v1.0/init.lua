@@ -35,11 +35,13 @@ local w, h = gpu.getResolution()
 local statusY = 1
 local statusEnabled = true
 function status(msg)
+	if not msg then return end
+	msg = tostring(msg)
 	if statusEnabled then
 		gpu.setBackground(0x000000)
 		gpu.setForeground(0xFFFFFF)
 	    local time = os.date('%X', computer.uptime())
-	    msg = "[" .. tostring(time) .. "] " .. msg
+		msg = "[" .. tostring(time) .. "] " .. msg
 		local x = 1
 		local y = statusY
 		gpu.set(x,y,msg)
@@ -96,10 +98,10 @@ function kernel.loadModule(name)
 	if kernel.modules[name] then return kernel.modules[name] end
 	local preLoad, reason = loadfile(path)
 	if not preLoad then panic("Error in loading file " .. path .. ". Reason: " .. reason) end
-	xpcall(preLoad,panic)
-	local returning = {preLoad()}
-	kernel.modules[name] = returning[1]
-	return table.unpack(returning)
+	local returning = {pcall(preLoad)}
+	if not returning[1] then panic(returning[2]) end
+	kernel.modules[name] = returning[2]
+	return table.unpack(returning,2,returning.n)
 end
 _G.isShiftPressed = false
 _G.isCtrlPressed = false
@@ -116,18 +118,20 @@ for i = 1, #daem do
 end
 daemons.start()
 status("Starting small lua interprepter")
+local input, last
 while true do
-	local input = SCI.io.screen.inputWord(1,48,160,3,"",0x000000,0xFFFFFF,1,1)
+	input = nil
+	input, last = SCI.io.screen.inputWord(1,48,160,3,"",0x000000,0xFFFFFF,1,1,last)
 	gpu.setBackground(0x000000)
 	gpu.setForeground(0xFFFFFF)
 	status(tostring(input))
-	if input and not input == "" then
-		local func, reason = load(input,"=string",_,{SCI=SCI,status=status})
+	if input then
+		local func, reason = load(input,"=string","t",{SCI=SCI,status=status,SUkey = superuserkey})
 		if not func then 
 			status(reason)
 		else
 			local success, reason2 = pcall(func)
-			if not success then status(reason) end
+			if not success then status(reason2) end
 		end
 	end
 end
