@@ -3,4 +3,5 @@
 	["/module/"] = {superuser={read=true,write=true},user={read=false,write=false}},
 	["/daemons/"] = {superuser={read=true,write=true},user={read=true,write=false}},
 	["/kernel/"] = {superuser={read=true,write=true},user={read=true,write=false}},
+	["/drivers/"] = {superuser={read=true,write=true},user={read=true,write=false}},
 }
