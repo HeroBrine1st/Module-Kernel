@@ -295,7 +295,7 @@ end
 do
 	local gpu = com.gpu
 
-
+	--эти 2 функции - от ECS.
 	function SCI.io.screen.rememberOldPixels(x, y, x2, y2)
 		local newPNGMassiv = { ["backgrounds"] = {} }
 		local xSize, ySize = SCI.io.screen.getResolution()
