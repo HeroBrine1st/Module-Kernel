@@ -7,8 +7,8 @@ local SCI = {
 		internet = {},
 		modem = {},
 	},
+	device = {},
 }
-
 status("[SCI] Initializing...")
 local com = com
 fs = com.filesystem
@@ -30,6 +30,20 @@ do
 	permissions = load("return " .. data)()
 end
 
+local function checkPermissions(path,superuserkey)
+	local perm = {read=true,write=true}
+	for key, value in pairs(permissions) do
+		local len = key:len()
+		if path:sub(1,len) == key then 
+			if superuserkey == SUkey then perm = value.superuser else perm = value.user end
+		end
+	end
+	return perm
+end
+local function requestOfDriverInstall(name)
+	--здесь будет ваша функция запроса установки драйвера. Если устанавливать, возвращает true, иначе - false
+	return false
+end
 -------------------------filesystem-------------------------
 do
 
@@ -59,16 +73,6 @@ do
 	  return parts
 	end
 
-	local function checkPermissions(path,superuserkey)
-		local perm = {read=true,write=true}
-		for key, value in pairs(permissions) do
-			local len = key:len()
-			if path:sub(1,len) == key then 
-				if superuserkey == SUkey then perm = value.superuser else perm = value.user end
-			end
-		end
-		return perm
-	end
 	function SCI.io.filesystem.getPermissions(path)
 		for key, value in pairs(permissions) do
 			local len = key:len()
@@ -122,7 +126,7 @@ do
 	end
 
 	function SCI.io.filesystem.getFileObject(path,superuserkey)
-		if not fs.exists(path) or fs.isDirectory(path) then return nil, "Invalid path" end
+		if fs.isDirectory(path) then return nil, "Invalid path" end
 		local object = {}
 		local perm = checkPermissions(path,superuserkey)
 		function object.read()
@@ -140,7 +144,7 @@ do
 				local handle, reason = fs.open(path,"w")
 				if not handle then status("Error writing data: " .. reason or "underfined error") return nil, reason end
 				fs.write(handle,data)
-				fs.close()
+				fs.close(handle)
 				return true
 			else
 				status("[SCI] Permission denied")
@@ -153,7 +157,7 @@ do
 				local handle, reason = fs.open(path,"w")
 				if not handle then status("Error creating file: " .. reason or "underfined error") return nil, reason end
 				fs.write(handle,"")
-				fs.close()
+				fs.close(handle)
 				return true
 			else
 				status("[SCI] Permission denied")
@@ -290,20 +294,62 @@ end
 ---------------------------screen--------------------------- 
 do
 	local gpu = com.gpu
+
+
+	function SCI.io.screen.rememberOldPixels(x, y, x2, y2)
+		local newPNGMassiv = { ["backgrounds"] = {} }
+		local xSize, ySize = SCI.io.screen.getResolution()
+		newPNGMassiv.x, newPNGMassiv.y = x, y
+		--Перебираем весь массив стандартного PNG-вида по высоте
+		local xCounter, yCounter = 1, 1
+		for j = y, y2 do
+		xCounter = 1
+			for i = x, x2 do
+				if (i > xSize or i < 0) or (j > ySize or j < 0) then
+					error("Can't remember pixel, because it's located behind the screen: x("..i.."), y("..j..") out of xSize("..xSize.."), ySize("..ySize..")\n")
+				end
+				local symbol, fore, back = gpu.get(i, j)
+				newPNGMassiv["backgrounds"][back] = newPNGMassiv["backgrounds"][back] or {}
+				newPNGMassiv["backgrounds"][back][fore] = newPNGMassiv["backgrounds"][back][fore] or {}
+				table.insert(newPNGMassiv["backgrounds"][back][fore], {xCounter, yCounter, symbol} )
+
+				xCounter = xCounter + 1
+				back, fore, symbol = nil, nil, nil
+			end
+			yCounter = yCounter + 1
+		end
+		return newPNGMassiv
+	end
+	 
+
+	function SCI.io.screen.drawOldPixels(massivSudaPihay)
+		--Перебираем массив с фонами
+		for back, backValue in pairs(massivSudaPihay["backgrounds"]) do
+			gpu.setBackground(back)
+			for fore, foreValue in pairs(massivSudaPihay["backgrounds"][back]) do
+				gpu.setForeground(fore)
+				for pixel = 1, #massivSudaPihay["backgrounds"][back][fore] do
+					if massivSudaPihay["backgrounds"][back][fore][pixel][3] ~= transparentSymbol then
+						gpu.set(massivSudaPihay.x + massivSudaPihay["backgrounds"][back][fore][pixel][1] - 1, massivSudaPihay.y + massivSudaPihay["backgrounds"][back][fore][pixel][2] - 1, massivSudaPihay["backgrounds"][back][fore][pixel][3])
+					end
+				end
+			end
+		end
+	end
+
+	SCI.io.screen.getResolution = gpu.getResolution
 	function SCI.io.screen.set(x,y,text,background,foreground)
-		gpu.setBackground(background)
-		gpu.setForeground(foreground)
+		SCI.io.screen.setGroundColor(background,foreground)
 		gpu.set(x,y,text)
 	end
 	function SCI.io.screen.fill(x,y,w,h,background,foreground,symbol)
 		if not foreground or not symbol then foreground = 0x000000 symbol = " " end
-		gpu.setBackground(background)
-		gpu.setForeground(foreground)
+		SCI.io.screen.setGroundColor(background,foreground)
 		gpu.fill(x,y,w,h,symbol)
 	end
 	function SCI.io.screen.get(x,y) return gpu.get(x,y) end
-	function SCI.io.screen.copy(x,y,w,h,delX,delY) gpu.copy(x,y,w,h,delX,delY) end
-
+	function SCI.io.screen.copy(x,y,w,h,delX,delY) return gpu.copy(x,y,w,h,delX,delY) end
+	function SCI.io.screen.setGroundColor(back,fore) gpu.setBackground(back) gpu.setForeground(fore) end
 	local function getLastSymbols(string,count)
 		local len = string:len()
 		local firstMarker = len-count+1
@@ -321,23 +367,57 @@ do
 	function SCI.io.screen.inputWord(x,y,w,h,text,textColor,inputColor,delX,delY)
 		delX = delX or 0
 		delY = delY or 0
+		text = text or ""
 		local screen = SCI.io.screen
 		screen.fill(x,y,w,h,inputColor)
-		gpu.setBackground(inputColor)
-		gpu.setForeground(textColor)
-		local cursor = text:sub(-1,w-2*delX):len()
 		while true do
 			screen.set(x+delX,y+delY,getLastSymbols(text,w-delX*2),inputColor,textColor)
 			local signal = {computer.pullSignal()}
 			if signal[1] == "key_down" then
 				if signal[4] == 28 then 
-					return text 
+					return text, last
 				elseif signal[4] == 14 then 
 					text = text:sub(1,text:len()-1) 
 					screen.fill(x,y,w,h,inputColor) 
 				else
 					text = text .. tostring(convertCode(signal[3]))
 				end
+			end
+		end
+	end
+end
+---------------------------drivers--------------------------
+do
+
+	status("[SCI] Initializing drivers")
+	local driversPath = "/drivers/"
+	function SCI.device.installDriver(path,name,SUkeyORrequest)
+		status("[SCI] Installing driver " .. tostring(name) .. "...")
+		local perm = {} 
+		local superuserkey = ""
+		if type(SUkeyORrequest) == "string" then
+			perm = checkPermissions(SCI.io.filesystem.concat(driversPath,name),SUkeyORrequest)
+			if not perm.write then status("[SCI] Permission denied") return nil, "Bad superuser key" end
+			superuserkey = SUkeyORrequest 
+		elseif type(SUkeyORrequest) == "boolean" and SUkeyORrequest == true then
+			if requestOfDriverInstall(name) then superuserkey = SUkey end
+		end
+		if superuserkey == "" and not SUkeyORrequest then status("[SCI] Permission denied") return nil, "Bad superuserkey" end
+		if superuserkey == "" then status("[SCI] User denied install") return nil, "User denied install" end
+		local objectDriver = SCI.io.filesystem.getFileObject(SCI.io.filesystem.concat(driversPath,name),superuserkey)
+		local objectFile = SCI.io.filesystem.getFileObject(path,superuserkey)
+		objectDriver.mkdirs()
+		objectDriver.rewrite(objectFile.read())
+		status("[SCI] Installed")
+		return true
+	end
+	for key, file in pairs(SCI.io.filesystem.list(driversPath,SUkey)) do
+		if type(file) == "string" then
+			status("[SCI] Loading driver " .. file .. "...")
+			local success, reason = pcall(loadfile(SCI.io.filesystem.concat(driversPath,file)))
+			if not success then status("[SCI] Error loading driver " .. name .. ":" .. reason) end
+			if success then
+				SCI.device[file] = reason
 			end
 		end
 	end
