@@ -295,7 +295,8 @@ end
 do
 	local gpu = com.gpu
 
-	--эти 2 функции - от ECS.
+	--эти 2 функции - от ECS. https://github.com/IgorTimofeev , если хочешь посмотреть его код.
+	--P.s. либка ECSAPI несовместима с этим ядром, поэтому пришлось вытащить эти 2 функции.
 	function SCI.io.screen.rememberOldPixels(x, y, x2, y2)
 		local newPNGMassiv = { ["backgrounds"] = {} }
 		local xSize, ySize = SCI.io.screen.getResolution()
